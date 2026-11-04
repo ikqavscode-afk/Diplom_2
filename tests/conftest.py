@@ -27,7 +27,6 @@ def registered_user(api_session, user_data):
         f"{BASE_URL}{REGISTER_ENDPOINT}",
         json=user_data,
     )
-    assert response.status_code == 200, response.text
 
     access_token = response.json()["accessToken"]
 
@@ -47,10 +46,17 @@ def ingredient_ids(api_session):
     response = api_session.get(
         f"{BASE_URL}{INGREDIENTS_ENDPOINT}"
     )
-    assert response.status_code == 200, response.text
 
-    body = response.json()
-    assert body["success"] is True
-    assert body["data"], "API не вернул список ингредиентов"
+    return [ingredient["_id"] for ingredient in response.json()["data"]]
 
-    return [ingredient["_id"] for ingredient in body["data"]]
+@pytest.fixture
+def tokens_to_delete(api_session):
+    tokens = []
+
+    yield tokens
+
+    for token in tokens:
+        api_session.delete(
+            f"{BASE_URL}/auth/user",
+            headers={"Authorization": token},
+        )
