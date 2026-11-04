@@ -5,30 +5,23 @@ from config import BASE_URL, LOGIN_ENDPOINT, REGISTER_ENDPOINT
 
 class TestUserRegistration:
     @allure.title("Регистрация нового пользователя")
-    def test_register_new_user(self, api_session, user_data):
+    def test_register_new_user(self, api_session, user_data, tokens_to_delete):
         with allure.step("Отправить данные нового пользователя"):
             response = api_session.post(
                 f"{BASE_URL}{REGISTER_ENDPOINT}",
                 json=user_data,
             )
 
-        assert response.status_code == 200, response.text
         body = response.json()
-        access_token = body["accessToken"]
+        tokens_to_delete.append(body["accessToken"])
 
-        try:
-            with allure.step("Проверить успешный ответ и данные пользователя"):
-                assert body["success"] is True
-                assert body["user"]["email"] == user_data["email"]
-                assert body["user"]["name"] == user_data["name"]
-                assert access_token.startswith("Bearer ")
-                assert body["refreshToken"]
-        finally:
-            with allure.step("Удалить созданного пользователя"):
-                api_session.delete(
-                    f"{BASE_URL}/auth/user",
-                    headers={"Authorization": access_token},
-                )
+        with allure.step("Проверить успешный ответ и данные пользователя"):
+            assert response.status_code == 200, response.text
+            assert body["success"] is True
+            assert body["user"]["email"] == user_data["email"]
+            assert body["user"]["name"] == user_data["name"]
+            assert body["accessToken"].startswith("Bearer ")
+            assert body["refreshToken"]
 
     @allure.title("Повторная регистрация существующего пользователя")
     def test_register_existing_user(self, api_session, registered_user):
@@ -48,9 +41,8 @@ class TestUserRegistration:
     @allure.title("Регистрация без обязательного поля")
     def test_register_without_required_field(self, api_session, user_data):
         incomplete_user_data = {
-            key: value
-            for key, value in user_data.items()
-            if key != "name"
+            "email": user_data["email"],
+            "password": user_data["password"],
         }
 
         with allure.step("Отправить данные без имени"):
